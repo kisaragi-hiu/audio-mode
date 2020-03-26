@@ -4,7 +4,7 @@
 
 ;; Author: Kisaragi Hiu <mail@kisaragi-hiu.com>
 ;; Keywords: multimedia
-;; Package-Requires: ((emacs "25"))
+;; Package-Requires: ((emacs "25") (mpv "0.1.0"))
 ;; Homepage: https://kisaragi-hiu.com/projects/audio-mode
 ;; Version: 0.0.1
 
@@ -31,6 +31,17 @@
 ;;; Code:
 
 (require 'seq)
+;; mpv.el requires org for whatever reason. This works for now.
+(require 'mpv)
+
+(defgroup audio
+  :prefix "audio-"
+  :group 'multimedia)
+
+(defcustom audio-mode-auto-play t
+  "Whether to automatically play the audio with mpv or not."
+  :type 'boolean
+  :group 'audio)
 
 (defun audio-toggle-display ()
   "Toggle between `audio-mode' and text display.
@@ -106,7 +117,41 @@ Provide bindings for going back to `audio-mode'."
 Two commands, \\<audio-mode-map>\\[audio-toggle-display] and
 \\<audio-mode-map>\\[audio-toggle-hex-display] are provided for
 viewing the audio file as text or hex. This is just like
-`image-mode'.")
+`image-mode'."
+  (setq-local revert-buffer-function #'audio-mode--revert-buffer)
+  ;; FIXME: kind of defeats the point of doing this. The purpose is to
+  ;; make it feel like we're visiting the file; if `buffer-file-name'
+  ;; must be nil, then perhaps we might as well just build an
+  ;; independent interface for `mpv-play'.
+  ;; Actually, maybe it's fine. Dired also doesn't have a
+  ;; buffer-file-name.
+  (setq buffer-file-name nil)
+  (when audio-mode-auto-play
+    (mpv-play buffer-file-name)))
+
+(defvar audio-mode-duration-format "%.2h:%.2m:%.2s")
+
+(mpv-play "/run/media/kisaragi-hiu/Data/mega/Projects/music.cover.utau.LEO - Eve/export-20200322T190300+0900.ogg")
+;; how do you avoid saving this display to the file?
+(defun audio-mode--revert-buffer (&rest _)
+  "Render content in audio mode buffer."
+  (insert (f-filename buffer-file-name) "\n\n")
+  (insert (format-seconds audio-mode-duration-format 0)
+          ;; TODO: replace with progress
+          "    "
+          (format-seconds audio-mode-duration-format
+                          (mpv-get-playback-position))
+          "    "
+          (format-seconds audio-mode-duration-format
+                          (mpv-get-duration))
+          "\n\n"))
+"
+export-20200301-000000+0900.ogg
+
+0:00 <=====    > 2:00
+[Play] [Stop]
+[Seek to]
+"
 
 (provide 'audio-mode)
 ;;; audio-mode.el ends here
