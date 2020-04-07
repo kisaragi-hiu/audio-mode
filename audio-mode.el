@@ -31,10 +31,12 @@
 ;;; Code:
 
 (require 'seq)
+(require 'f)
 ;; mpv.el requires org for whatever reason. This works for now.
 (require 'mpv)
 
-(defgroup audio
+(defgroup audio ()
+  "Audio mode."
   :prefix "audio-"
   :group 'multimedia)
 
@@ -81,6 +83,7 @@ local `change-major-mode-hook'."
 ;;;###autoload
 (define-minor-mode audio-minor-mode
   "Minor mode providing bindings to go back to `audio-mode'."
+  :global nil :lighter " Audio"
   (when audio-minor-mode
     (add-hook 'change-major-mode-hook #'audio-minor-mode--cleanup nil t)))
 
@@ -118,40 +121,50 @@ Two commands, \\<audio-mode-map>\\[audio-toggle-display] and
 \\<audio-mode-map>\\[audio-toggle-hex-display] are provided for
 viewing the audio file as text or hex. This is just like
 `image-mode'."
-  (setq-local revert-buffer-function #'audio-mode--revert-buffer)
-  ;; FIXME: kind of defeats the point of doing this. The purpose is to
-  ;; make it feel like we're visiting the file; if `buffer-file-name'
-  ;; must be nil, then perhaps we might as well just build an
-  ;; independent interface for `mpv-play'.
-  ;; Actually, maybe it's fine. Dired also doesn't have a
-  ;; buffer-file-name.
-  (setq buffer-file-name nil)
+  (add-hook 'write-contents-functions (lambda () t) nil t)
   (when audio-mode-auto-play
-    (mpv-play buffer-file-name)))
+    (mpv-play buffer-file-name))
+  (setq-local revert-buffer-function #'audio-mode--revert-buffer)
+  (audio-mode--revert-buffer))
 
 (defvar audio-mode-duration-format "%.2h:%.2m:%.2s")
 
-(mpv-play "/run/media/kisaragi-hiu/Data/mega/Projects/music.cover.utau.LEO - Eve/export-20200322T190300+0900.ogg")
-;; how do you avoid saving this display to the file?
+(defmacro audio-mode--make-command (&rest body)
+  "Make a command named NAME for use in Audio mode.
+
+BODY is the body of the command; the command discards any
+arguments passed to it. If the command is run in an Audio mode
+buffer, it is refreshed."
+  `(lambda (&rest _)
+     (interactive)
+     ,@body
+     (when (derived-mode-p 'audio-mode)
+       (revert-buffer))))
+
 (defun audio-mode--revert-buffer (&rest _)
   "Render content in audio mode buffer."
-  (insert (f-filename buffer-file-name) "\n\n")
-  (insert (format-seconds audio-mode-duration-format 0)
-          ;; TODO: replace with progress
-          "    "
-          (format-seconds audio-mode-duration-format
-                          (mpv-get-playback-position))
-          "    "
-          (format-seconds audio-mode-duration-format
-                          (mpv-get-duration))
-          "\n\n"))
-"
-export-20200301-000000+0900.ogg
-
-0:00 <=====    > 2:00
-[Play] [Stop]
-[Seek to]
-"
+  (let ((cur-point (point)))
+    (erase-buffer)
+    (insert (f-filename buffer-file-name) "\n\n")
+    (insert-text-button "<<" 'action (audio-mode--make-command (mpv-seek-backward 5)))
+    (insert " ")
+    (insert-text-button "Play" 'action (audio-mode--make-command (mpv-play buffer-file-name)))
+    (insert " ")
+    (insert-text-button "Pause" 'action (audio-mode--make-command (mpv-pause)))
+    (insert " ")
+    (insert-text-button ">>" 'action (audio-mode--make-command (mpv-seek-forward 5)))
+    (insert "\n\n"
+            (format-seconds audio-mode-duration-format 0)
+            ;; TODO: replace with progress
+            "    "
+            (format-seconds audio-mode-duration-format
+                            (or (mpv-get-playback-position) 0))
+            "    "
+            (format-seconds audio-mode-duration-format
+                            (or (mpv-get-duration) 0))
+            "\n\n")
+    (goto-char (or cur-point (point-min)))
+    (set-buffer-modified-p nil)))
 
 (provide 'audio-mode)
 ;;; audio-mode.el ends here
