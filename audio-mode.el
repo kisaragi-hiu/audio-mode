@@ -114,7 +114,7 @@ Provide bindings for going back to `audio-mode'."
   (hexl-mode))
 
 ;;;###autoload
-(define-derived-mode audio-mode nil "Audio"
+(define-derived-mode audio-mode special-mode "Audio"
   "Major mode for playing audio and viewing metadata of audio files.
 
 Two commands, \\<audio-mode-map>\\[audio-toggle-display] and
@@ -126,6 +126,12 @@ viewing the audio file as text or hex. This is just like
     (mpv-play buffer-file-name))
   (setq-local revert-buffer-function #'audio-mode--revert-buffer)
   (audio-mode--revert-buffer))
+
+;;;###autoload
+(dolist (end '(".wav" ".mp3" ".ogg"))
+  (add-to-list 'auto-mode-alist
+               (cons (rx-to-string `(seq ,end eos) t)
+                     #'audio-mode)))
 
 (defvar audio-mode-duration-format "%.2h:%.2m:%.2s")
 
@@ -143,7 +149,8 @@ buffer, it is refreshed."
 
 (defun audio-mode--revert-buffer (&rest _)
   "Render content in audio mode buffer."
-  (let ((cur-point (point)))
+  (let ((cur-point (point))
+        (inhibit-read-only t))
     (erase-buffer)
     (insert (f-filename buffer-file-name) "\n\n")
     (insert-text-button "<<" 'action (audio-mode--make-command (mpv-seek-backward 5)))
