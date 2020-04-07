@@ -6,7 +6,7 @@
 ;; Keywords: multimedia
 ;; Package-Requires: ((emacs "25") (mpv "0.1.0"))
 ;; Homepage: https://kisaragi-hiu.com/projects/audio-mode
-;; Version: 0.0.1
+;; Version: 0.1.0
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -44,73 +44,10 @@
   :type 'boolean
   :group 'audio)
 
-(defun audio-toggle-display ()
-  "Toggle between `audio-mode' and text display.
-
-`audio-mode' equivalent of `image-toggle-display'."
-  (interactive)
-  (if (memq major-mode '(audio-mode hexl-mode))
-      (audio-mode-as-text)
-    (audio-mode)))
-
-(defun audio-toggle-hex-display ()
-  "Toggle between `audio-mode' and hex display.
-
-`audio-mode' equivalent of `image-toggle-hex-display'."
-  (interactive)
-  (if (memq major-mode '(audio-mode fundamental-mode nil))
-      (audio-mode-as-hex)
-    (audio-mode)))
-
 ;;;; Minor mode and major mode(s)
-(defvar audio-minor-mode-map
-  (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "C-c C-c") #'audio-toggle-display)
-    (define-key map (kbd "C-c C-x") #'audio-toggle-hex-display)
-    map))
-
-(defvar audio-mode-map audio-minor-mode-map)
-
-(defun audio-minor-mode--cleanup ()
-  "For use in `change-major-mode-hook'.
-
-Turn off `audio-minor-mode' and remove this function from
-local `change-major-mode-hook'."
-  (audio-minor-mode -1)
-  (remove-hook 'change-major-mode-hook #'audio-minor-mode--cleanup t))
-
-;;;###autoload
-(define-minor-mode audio-minor-mode
-  "Minor mode providing bindings to go back to `audio-mode'."
-  :global nil :lighter " Audio"
-  (when audio-minor-mode
-    (add-hook 'change-major-mode-hook #'audio-minor-mode--cleanup nil t)))
-
-;;;###autoload
-(defun audio-mode-as-text ()
-  "Switch to a non-audio major mode.
-
-Provide bindings for going back to `audio-mode'."
-  (interactive)
-  (let ((auto-mode-alist
-         (seq-filter (pcase-lambda (`(,_key . ,mode))
-                       (memq mode '(audio-mode audio-mode-as-text)))
-                     auto-mode-alist))
-        (magic-fallback-mode-alist
-         (seq-filter (pcase-lambda (`(,_key . ,mode))
-                       (memq mode '(audio-mode audio-mode-as-text)))
-                     auto-mode-alist)))
-    (normal-mode))
-  (audio-minor-mode))
-
-;;;###autoload
-(defun audio-mode-as-hex ()
-  "Switch to a hex view of an audio file."
-  (interactive)
-  (audio-mode-as-text)
-  ;; `hexl-mode' doesn't `kill-all-local-variables', so
-  ;; `audio-minor-mode' persists.
-  (hexl-mode))
+;; (defvar audio-mode-map
+;;   (let ((map (make-sparse-keymap)))
+;;     map))
 
 ;;;###autoload
 (define-derived-mode audio-mode special-mode "Audio"
