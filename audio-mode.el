@@ -31,7 +31,6 @@
 ;;; Code:
 
 (require 'seq)
-(require 'f)
 ;; mpv.el requires org for whatever reason. This works for now.
 (require 'mpv)
 
@@ -152,7 +151,7 @@ buffer, it is refreshed."
   (let ((cur-point (point))
         (inhibit-read-only t))
     (erase-buffer)
-    (insert (f-filename buffer-file-name) "\n\n")
+    (insert (file-name-nondirectory buffer-file-name) "\n\n")
     (insert-text-button "<<" 'action (audio-mode--make-command (mpv-seek-backward 5)))
     (insert " ")
     (insert-text-button "Play" 'action (audio-mode--make-command (mpv-play buffer-file-name)))
